@@ -1,0 +1,14 @@
+#Example with two network:
+# VM Network - 10.0.100.0/24
+interface=vmbr100
+dhcp-range=set:vmnet,10.0.100.10,10.0.100.100,12h
+dhcp-option=tag:vmnet,3,10.0.100.1
+dhcp-option=tag:vmnet,6,8.8.8.8,1.1.1.1
+
+# CT Network - 10.0.200.0/24
+interface=vmbr200
+dhcp-range=set:ctnet,10.0.200.10,10.0.200.100,12h
+dhcp-option=tag:ctnet,3,10.0.200.1
+dhcp-option=tag:ctnet,6,8.8.8.8,1.1.1.1
+
+#check the nat-vm for network interface settings. 

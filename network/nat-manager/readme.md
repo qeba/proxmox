@@ -3,7 +3,7 @@ Setup Instructions:
 First-time Setup
 ```bash
 # Download and make the script executable
-wget -O nat_manager.sh <get raw from this link>
+wget -O nat_manager.sh https://raw.githubusercontent.com/qeba/proxmox/refs/heads/main/network/nat-manager/nat-manager.sh 
 chmod +x nat_manager.sh
 
 # Install dependencies (run once)
