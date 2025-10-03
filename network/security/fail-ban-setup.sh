@@ -11,9 +11,7 @@
 # It will prompt the user for maxretry and bantime values.
 # It should be run with root privileges.
 # ==============================================================================
-
 # --- Preamble and Safety Check ---
-# Ensure the script is run as root
 if [ "$(id -u)" -ne 0 ]; then
    echo "🚫 This script must be run as root. Please use sudo." 1>&2
    exit 1
@@ -24,25 +22,17 @@ echo "------------------------------------------------"
 
 # --- 1. Get User Input for Configuration ---
 echo "⚙️  STEP 1: Custom Configuration"
-echo "Please provide the default values for banning."
-echo ""
-
-# Get Max Retry from user
 read -p "Enter the number of failed attempts before a ban (e.g., 5): " MAX_RETRY
-# Basic validation to ensure it's a number
 while ! [[ "$MAX_RETRY" =~ ^[0-9]+$ ]]; do
     echo "❌ Invalid input. Please enter a whole number."
     read -p "Enter the number of failed attempts before a ban (e.g., 5): " MAX_RETRY
 done
 
 echo ""
-# Get Ban Time from user
 echo "Enter the ban duration. Use 'm' for minutes, 'h' for hours, or 'd' for days."
 read -p "Enter the ban time (e.g., 24h for 24 hours): " BAN_TIME
-# Basic validation for the time format
 while ! [[ "$BAN_TIME" =~ ^[0-9]+[mhd]$ ]]; do
     echo "❌ Invalid format. Please use a number followed by 'm', 'h', or 'd'."
-    echo "   Examples: 30m, 12h, 7d"
     read -p "Enter the ban time (e.g., 24h): " BAN_TIME
 done
 
@@ -63,7 +53,6 @@ echo "------------------------------------------------"
 echo "⚙️  STEP 3: Creating Fail2ban filter for Proxmox Web UI..."
 cat > /etc/fail2ban/filter.d/proxmox.conf << EOF
 [Definition]
-# Regex to match Proxmox VE authentication failures
 failregex = ^.*pvedaemon\[[0-9]+\]: authentication failure; rhost=<HOST>.*$
 ignoreregex =
 EOF
@@ -72,49 +61,54 @@ echo "------------------------------------------------"
 
 
 # --- 4. Create Local Jail Configuration ---
-echo "⚙️  STEP 4: Creating main jail configuration (jail.local) with your settings..."
+echo "⚙️  STEP 4: Creating main jail configuration (jail.local)..."
 cat > /etc/fail2ban/jail.local << EOF
 [DEFAULT]
-# Global settings for all jails, based on your input.
 ignoreip = 127.0.0.1/8 ::1
 bantime = ${BAN_TIME}
 findtime = 10m
 maxretry = ${MAX_RETRY}
 
-# --- Jail for SSH ---
 [sshd]
 enabled = true
-# This jail will use the DEFAULT settings above.
 
-# --- Jail for Proxmox Web UI ---
 [proxmox]
 enabled = true
-port = https,http,8006
-filter = proxmox
-logpath = /var/log/daemon.log
-# This jail will also use the DEFAULT settings above.
+port    = 8006
+filter  = proxmox
+# Use systemd backend instead of a logpath for modern Proxmox
+backend = systemd
 EOF
 echo "✅ Main jail configuration created."
 echo "------------------------------------------------"
 
 
-# --- 5. Restart and Verify Fail2ban ---
+# --- 5. Restart, VERIFY, and Report Status ---
 echo "⚙️  STEP 5: Enabling and restarting Fail2ban service..."
 systemctl enable fail2ban > /dev/null 2>&1
 systemctl restart fail2ban
-sleep 3 # Give the service a moment to start up
+sleep 3 # Give the service a moment to initialize.
 
-echo "✅ Fail2ban service has been restarted."
-echo "------------------------------------------------"
-echo "🔍 Verifying jail status..."
-
-fail2ban-client status
-echo ""
-echo "👀 Checking individual jail status..."
-fail2ban-client status sshd
-echo ""
-fail2ban-client status proxmox
-
-echo "------------------------------------------------"
-echo "🎉 All done! Fail2ban is now active with your custom settings."
-echo "You can monitor its activity in the log file: /var/log/fail2ban.log"
+# Verify that the service is active
+if systemctl is-active --quiet fail2ban; then
+    echo "✅ Fail2ban service is active and running."
+    echo "------------------------------------------------"
+    echo "🔍 Verifying jail status..."
+    fail2ban-client status
+    echo ""
+    echo "👀 Checking individual jail status..."
+    fail2ban-client status sshd
+    echo ""
+    fail2ban-client status proxmox
+    echo "------------------------------------------------"
+    echo "🎉 All done! Fail2ban is now active with your custom settings."
+    echo "You can monitor its activity with: journalctl -f -u fail2ban"
+else
+    # If the service failed, give the user debugging commands
+    echo "❌ ERROR: The Fail2ban service failed to start." >&2
+    echo "This is usually due to a configuration error." >&2
+    echo "Please run the following commands to diagnose the issue:" >&2
+    echo "1. systemctl status fail2ban" >&2
+    echo "2. journalctl -u fail2ban -n 100 --no-pager" >&2
+    exit 1
+fi
