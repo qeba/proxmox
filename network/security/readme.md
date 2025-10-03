@@ -1,10 +1,18 @@
 Run the following single command. This will download the script and immediately execute it with sudo privileges.
+
+First download
 ```
-wget -O - https://raw.githubusercontent.com/qeba/proxmox/main/network/security/fail-ban-setup.sh | sudo bash
+wget https://raw.githubusercontent.com/qeba/proxmox/main/network/security/fail-ban-setup.sh
 ```
 
-or `curl`
+give permission:
+```
+chmod +x fail-ban-setup.sh
+```
 
+then, run the script:
 ```
-curl -sSL https://raw.githubusercontent.com/qeba/proxmox/main/network/security/fail-ban-setup.sh | sudo bash
+sudo ./fail-ban-setup.sh
 ```
+
+input all the required value max-retry and ban time. 
